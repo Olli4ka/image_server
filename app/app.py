@@ -1,3 +1,5 @@
+from email.parser import BytesParser
+from email.policy import default
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -19,6 +21,7 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             self.serve_file(STATIC_DIR / "upload.html", "text/html")
             return
 
+
         if self.path.startswith("/static/"):
             relative_path = self.path.removeprefix("/static/")
             file_path = STATIC_DIR / relative_path
@@ -35,16 +38,47 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
             return
 
+        content_type = self.headers.get("Content-Type")
         content_length = int(self.headers.get("Content-Length", 0))
+
+        if not content_type or not content_type.startswith("multipart/form-data"):
+            self.send_error(400, "Expected multipart/form-data")
+            return
+
         body = self.rfile.read(content_length)
 
-        print(f"Received upload request: {len(body)} bytes")
+        mime_message = (
+            f"Content-Type: {content_type}\r\n"
+            "MIME-Version: 1.0\r\n"
+            "\r\n"
+        ).encode("utf-8") + body
+
+        message = BytesParser(policy=default).parsebytes(mime_message)
+
+        uploaded_file = None
+
+        for part in message.iter_parts():
+            if part.get_param("name", header="Content-Disposition") == "file":
+                uploaded_file = part
+                break
+
+        if uploaded_file is None:
+            self.send_error(400, "File not found")
+            return
+
+        filename = uploaded_file.get_filename()
+        file_data = uploaded_file.get_payload(decode=True)
+
+        print(f"Received file: {filename}")
+        print(f"File size: {len(file_data)} bytes")
 
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
 
-        self.wfile.write(b"Upload request received!")
+        self.wfile.write(
+            f"Received file: {filename}".encode("utf-8")
+        )
 
     def serve_file(self, file_path, content_type):
         try:
