@@ -7,6 +7,8 @@ from pathlib import Path
 HOST = "0.0.0.0"
 PORT = 8000
 
+MAX_FILE_SIZE = 5 * 1024 * 1024
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 
@@ -68,6 +70,10 @@ class ImageServerHandler(BaseHTTPRequestHandler):
 
         filename = uploaded_file.get_filename()
         file_data = uploaded_file.get_payload(decode=True)
+
+        if len(file_data) > MAX_FILE_SIZE:
+            self.send_error(400, "File size exceeds 5 MB")
+            return
 
         print(f"Received file: {filename}")
         print(f"File size: {len(file_data)} bytes")
