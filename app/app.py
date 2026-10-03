@@ -1,3 +1,4 @@
+import uuid
 from email.parser import BytesParser
 from email.policy import default
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -92,8 +93,11 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             self.send_error(400, "Invalid image file")
             return
 
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+
         print(f"Received file: {filename}")
         print(f"File size: {len(file_data)} bytes")
+        print(f"Unique filename: {unique_filename}")
 
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
