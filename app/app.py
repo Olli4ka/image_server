@@ -8,6 +8,7 @@ HOST = "0.0.0.0"
 PORT = 8000
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -73,6 +74,12 @@ class ImageServerHandler(BaseHTTPRequestHandler):
 
         if len(file_data) > MAX_FILE_SIZE:
             self.send_error(400, "File size exceeds 5 MB")
+            return
+
+        file_extension = Path(filename).suffix.lower()
+
+        if file_extension not in ALLOWED_EXTENSIONS:
+            self.send_error(400, "Unsupported file format")
             return
 
         print(f"Received file: {filename}")
