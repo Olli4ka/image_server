@@ -1,7 +1,10 @@
 from email.parser import BytesParser
 from email.policy import default
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from io import BytesIO
 from pathlib import Path
+
+from PIL import Image
 
 
 HOST = "0.0.0.0"
@@ -80,6 +83,13 @@ class ImageServerHandler(BaseHTTPRequestHandler):
 
         if file_extension not in ALLOWED_EXTENSIONS:
             self.send_error(400, "Unsupported file format")
+            return
+
+        try:
+            image = Image.open(BytesIO(file_data))
+            image.verify()
+        except (OSError, ValueError):
+            self.send_error(400, "Invalid image file")
             return
 
         print(f"Received file: {filename}")
