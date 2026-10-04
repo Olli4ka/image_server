@@ -16,6 +16,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
+IMAGES_DIR = BASE_DIR / "images"
 
 
 class ImageServerHandler(BaseHTTPRequestHandler):
@@ -94,6 +95,9 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             return
 
         unique_filename = f"{uuid.uuid4()}{file_extension}"
+
+        image_path = IMAGES_DIR / unique_filename
+        image_path.write_bytes(file_data)
 
         print(f"Received file: {filename}")
         print(f"File size: {len(file_data)} bytes")
