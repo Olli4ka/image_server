@@ -103,13 +103,13 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         print(f"File size: {len(file_data)} bytes")
         print(f"Unique filename: {unique_filename}")
 
+        image_url = f"/images/{unique_filename}"
+
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
 
-        self.wfile.write(
-            f"Received file: {filename}".encode("utf-8")
-        )
+        self.wfile.write(image_url.encode("utf-8"))
 
     def serve_file(self, file_path, content_type):
         try:
