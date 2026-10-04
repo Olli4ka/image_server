@@ -39,6 +39,16 @@ class ImageServerHandler(BaseHTTPRequestHandler):
                 self.serve_file(file_path, content_type)
                 return
 
+
+        if self.path.startswith("/images/"):
+            filename = self.path.removeprefix("/images/")
+            file_path = IMAGES_DIR / filename
+
+            if file_path.is_file():
+                content_type = self.get_content_type(file_path)
+                self.serve_file(file_path, content_type)
+                return
+
         self.send_error(404, "Not Found")
 
     def do_POST(self):
