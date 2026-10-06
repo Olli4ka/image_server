@@ -1,3 +1,4 @@
+import logging
 import uuid
 from email.parser import BytesParser
 from email.policy import default
@@ -17,6 +18,19 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 IMAGES_DIR = BASE_DIR / "images"
+LOGS_DIR = BASE_DIR / "logs"
+
+
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    filename=LOGS_DIR / "app.log",
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ImageServerHandler(BaseHTTPRequestHandler):
@@ -60,6 +74,7 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", 0))
 
         if not content_type or not content_type.startswith("multipart/form-data"):
+            logger.error("Upload failed: expected multipart/form-data")
             self.send_error(400, "Expected multipart/form-data")
             return
 
@@ -81,6 +96,7 @@ class ImageServerHandler(BaseHTTPRequestHandler):
                 break
 
         if uploaded_file is None:
+            logger.error("Upload failed: file not found in request")
             self.send_error(400, "File not found")
             return
 
@@ -88,12 +104,20 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         file_data = uploaded_file.get_payload(decode=True)
 
         if len(file_data) > MAX_FILE_SIZE:
+            logger.error(
+                "Upload failed: file size exceeds 5 MB (%d bytes)",
+                len(file_data),
+            )
             self.send_error(400, "File size exceeds 5 MB")
             return
 
         file_extension = Path(filename).suffix.lower()
 
         if file_extension not in ALLOWED_EXTENSIONS:
+            logger.error(
+                "Upload failed: unsupported file format (%s)",
+                file_extension,
+            )
             self.send_error(400, "Unsupported file format")
             return
 
@@ -101,6 +125,7 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             image = Image.open(BytesIO(file_data))
             image.verify()
         except (OSError, ValueError):
+            logger.error("Upload failed: invalid image file (%s)", filename)
             self.send_error(400, "Invalid image file")
             return
 
@@ -109,9 +134,12 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         image_path = IMAGES_DIR / unique_filename
         image_path.write_bytes(file_data)
 
-        print(f"Received file: {filename}")
-        print(f"File size: {len(file_data)} bytes")
-        print(f"Unique filename: {unique_filename}")
+        logger.info(
+            "Upload successful: original=%s, size=%d bytes, filename=%s",
+            filename,
+            len(file_data),
+            unique_filename,
+        )
 
         image_url = f"/images/{unique_filename}"
 
