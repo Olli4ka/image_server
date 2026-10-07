@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from database import create_table, save_image_metadata
+
 
 HOST = "0.0.0.0"
 PORT = 8000
@@ -130,6 +132,22 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             return
 
         unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_type = file_extension.removeprefix(".")
+
+        try:
+            save_image_metadata(
+                filename=unique_filename,
+                original_name=filename,
+                size=len(file_data),
+                file_type=file_type,
+            )
+        except Exception:
+            logger.exception(
+                "Upload failed: database error for file %s",
+                filename,
+            )
+            self.send_error(500, "Database error")
+            return
 
         image_path = IMAGES_DIR / unique_filename
         image_path.write_bytes(file_data)
@@ -189,4 +207,5 @@ def run_server():
 
 
 if __name__ == "__main__":
+    create_table()
     run_server()
