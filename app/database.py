@@ -57,3 +57,28 @@ def save_image_metadata(filename, original_name, size, file_type):
         connection.commit()
     finally:
         connection.close()
+
+
+def get_images():
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    filename,
+                    original_name,
+                    size,
+                    upload_time,
+                    file_type
+                FROM images
+                ORDER BY upload_time DESC
+                """
+            )
+
+            return cursor.fetchall()
+    finally:
+        connection.close()
+        

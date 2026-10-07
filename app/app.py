@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from email.parser import BytesParser
@@ -8,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from database import create_table, save_image_metadata
+from database import create_table, get_images, save_image_metadata
 
 
 HOST = "0.0.0.0"
@@ -43,6 +44,39 @@ class ImageServerHandler(BaseHTTPRequestHandler):
 
         if self.path == "/upload":
             self.serve_file(STATIC_DIR / "upload.html", "text/html")
+            return
+
+        if self.path == "/images-list":
+            try:
+                images = get_images()
+
+                response = []
+
+                for image in images:
+                    response.append(
+                        {
+                            "id": image[0],
+                            "filename": image[1],
+                            "original_name": image[2],
+                            "size": image[3],
+                            "upload_time": image[4].isoformat(),
+                            "file_type": image[5],
+                        }
+                    )
+
+                response_data = json.dumps(response).encode("utf-8")
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(response_data)))
+                self.end_headers()
+
+                self.wfile.write(response_data)
+
+            except Exception:
+                logger.exception("Failed to get images list")
+                self.send_error(500, "Database error")
+
             return
 
 
