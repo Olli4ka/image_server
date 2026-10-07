@@ -34,3 +34,26 @@ def create_table():
         connection.commit()
     finally:
         connection.close()
+
+
+def save_image_metadata(filename, original_name, size, file_type):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO images (
+                    filename,
+                    original_name,
+                    size,
+                    file_type
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (filename, original_name, size, file_type),
+            )
+
+        connection.commit()
+    finally:
+        connection.close()
