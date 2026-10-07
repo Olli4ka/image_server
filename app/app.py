@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from database import create_table
+
 
 HOST = "0.0.0.0"
 PORT = 8000
@@ -189,4 +191,5 @@ def run_server():
 
 
 if __name__ == "__main__":
+    create_table()
     run_server()
