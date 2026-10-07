@@ -46,6 +46,10 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             self.serve_file(STATIC_DIR / "upload.html", "text/html")
             return
 
+        if self.path == "/images":
+            self.serve_file(STATIC_DIR / "images-list.html", "text/html")
+            return
+
         if self.path == "/images-list":
             try:
                 images = get_images()
