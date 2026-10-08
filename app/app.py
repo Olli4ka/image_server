@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from email.parser import BytesParser
@@ -5,10 +6,12 @@ from email.policy import default
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from PIL import Image
 
-from database import create_table, save_image_metadata
+from database import create_table, get_images, save_image_metadata, delete_image
+
 
 
 HOST = "0.0.0.0"
@@ -43,6 +46,63 @@ class ImageServerHandler(BaseHTTPRequestHandler):
 
         if self.path == "/upload":
             self.serve_file(STATIC_DIR / "upload.html", "text/html")
+            return
+
+        if self.path == "/images":
+            self.serve_file(STATIC_DIR / "images-list.html", "text/html")
+            return
+
+        if self.path.startswith("/images-list"):
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
+            try:
+                page = int(query_params.get("page", ["1"])[0])
+            except ValueError:
+                self.send_error(400, "Invalid page")
+                return
+
+            if page < 1:
+                self.send_error(400, "Invalid page")
+                return
+
+            per_page = 10
+
+            try:
+                images, total = get_images(page=page, per_page=per_page)
+
+                response = {
+                    "images": [
+                        {
+                            "id": image[0],
+                            "filename": image[1],
+                            "original_name": image[2],
+                            "size": image[3],
+                            "upload_time": image[4].isoformat(),
+                            "file_type": image[5],
+                        }
+                        for image in images
+                    ],
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                }
+
+                self.send_response(200)
+                self.send_header(
+                    "Content-Type",
+                    "application/json; charset=utf-8",
+                )
+                self.end_headers()
+
+                self.wfile.write(
+                    json.dumps(response).encode("utf-8")
+                )
+
+            except Exception:
+                logger.exception("Failed to load images list")
+                self.send_error(500, "Database error")
+
             return
 
 
@@ -195,6 +255,58 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         }
 
         return content_types.get(suffix, "application/octet-stream")
+
+
+    def do_DELETE(self):
+        if not self.path.startswith("/images/"):
+            self.send_error(404, "Not Found")
+            return
+
+        image_id = self.path.removeprefix("/images/")
+
+        try:
+            image_id = int(image_id)
+        except ValueError:
+            self.send_error(400, "Invalid image ID")
+            return
+
+        try:
+            filename = delete_image(image_id)
+
+            if filename is None:
+                self.send_error(404, "Image not found")
+                return
+
+            image_path = IMAGES_DIR / filename
+
+            if image_path.is_file():
+                image_path.unlink()
+
+            logger.info(
+                "Image deleted: id=%d, filename=%s",
+                image_id,
+                filename,
+            )
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+
+            response = json.dumps(
+                {
+                    "message": "Image deleted successfully",
+                    "id": image_id,
+                }
+            )
+
+            self.wfile.write(response.encode("utf-8"))
+
+        except Exception:
+            logger.exception(
+                "Failed to delete image: id=%d",
+                image_id,
+            )
+            self.send_error(500, "Database error")
 
 
 def run_server():

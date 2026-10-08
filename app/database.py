@@ -57,3 +57,82 @@ def save_image_metadata(filename, original_name, size, file_type):
         connection.commit()
     finally:
         connection.close()
+
+
+def get_images(page=1, per_page=10):
+    connection = get_connection()
+
+    try:
+        offset = (page - 1) * per_page
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    filename,
+                    original_name,
+                    size,
+                    upload_time,
+                    file_type
+                FROM images
+                ORDER BY upload_time DESC
+                LIMIT %s OFFSET %s
+                """,
+                (per_page, offset),
+            )
+
+            images = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM images
+                """
+            )
+
+            total = cursor.fetchone()[0]
+
+            return images, total
+
+    finally:
+        connection.close()
+
+
+def delete_image(image_id):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT filename
+                FROM images
+                WHERE id = %s
+                """,
+                (image_id,),
+            )
+
+            image = cursor.fetchone()
+
+            if image is None:
+                return None
+
+            filename = image[0]
+
+            cursor.execute(
+                """
+                DELETE FROM images
+                WHERE id = %s
+                """,
+                (image_id,),
+            )
+
+        connection.commit()
+
+        return filename
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
