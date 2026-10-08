@@ -45,6 +45,7 @@ function renderImages(images) {
                         <th>Type</th>
                         <th>Size</th>
                         <th>Uploaded</th>
+                        <th>Delete</th>
                     </tr>
                 </thead>
 
@@ -74,6 +75,21 @@ function renderImages(images) {
                             <td>
                                 ${formatDate(image.upload_time)}
                             </td>
+
+                            <td>
+                                <button
+                                    type="button"
+                                    class="btn delete-button"
+                                    onclick="deleteImage(${image.id})"
+                                    title="Delete"
+                                >
+                                    <img
+                                        src="/static/img/delete.png"
+                                        alt="Delete"
+                                        class="delete-icon"
+                                    >
+                                </button>
+                            </td>
                         </tr>
                     `).join("")}
                 </tbody>
@@ -100,5 +116,31 @@ function formatDate(dateString) {
     return new Date(dateString).toLocaleString();
 }
 
+
+async function deleteImage(imageId) {
+    const confirmed = confirm(
+        "Are you sure you want to delete this image?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/images/${imageId}`, {
+            method: "DELETE",
+        });
+
+        if (!response.ok) {
+            throw new Error(`Delete failed: ${response.status}`);
+        }
+
+        await loadImages();
+    } catch (error) {
+        console.error(error);
+
+        alert("Failed to delete image.");
+    }
+}
 
 loadImages();
