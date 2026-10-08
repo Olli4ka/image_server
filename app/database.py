@@ -59,10 +59,12 @@ def save_image_metadata(filename, original_name, size, file_type):
         connection.close()
 
 
-def get_images():
+def get_images(page=1, per_page=10):
     connection = get_connection()
 
     try:
+        offset = (page - 1) * per_page
+
         with connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -75,10 +77,24 @@ def get_images():
                     file_type
                 FROM images
                 ORDER BY upload_time DESC
+                LIMIT %s OFFSET %s
+                """,
+                (per_page, offset),
+            )
+
+            images = cursor.fetchall()
+
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM images
                 """
             )
 
-            return cursor.fetchall()
+            total = cursor.fetchone()[0]
+
+            return images, total
+
     finally:
         connection.close()
 

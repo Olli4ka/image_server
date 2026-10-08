@@ -1,17 +1,22 @@
 const imagesContainer = document.getElementById("images-container");
 
+let currentPage = 1;
+const perPage = 10;
 
-async function loadImages() {
+async function loadImages(page = 1) {
     try {
-        const response = await fetch("/images-list");
+        const response = await fetch(`/images-list?page=${page}`);
 
         if (!response.ok) {
             throw new Error(`Failed to load images: ${response.status}`);
         }
 
-        const images = await response.json();
+        const data = await response.json();
 
-        renderImages(images);
+        currentPage = data.page;
+
+        renderImages(data.images);
+        renderPagination(data.page, data.per_page, data.total);
     } catch (error) {
         console.error(error);
 
@@ -23,7 +28,6 @@ async function loadImages() {
     }
 }
 
-
 function renderImages(images) {
     if (images.length === 0) {
         imagesContainer.innerHTML = `
@@ -31,7 +35,6 @@ function renderImages(images) {
                 No images uploaded yet.
             </div>
         `;
-
         return;
     }
 
@@ -98,6 +101,57 @@ function renderImages(images) {
     `;
 }
 
+function renderPagination(page, perPage, total) {
+    const totalPages = Math.ceil(total / perPage);
+
+    if (totalPages <= 1) {
+        return;
+    }
+
+    imagesContainer.insertAdjacentHTML(
+        "beforeend",
+        `
+            <nav class="mt-4" aria-label="Images pagination">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item ${page === 1 ? "disabled" : ""}">
+                        <button
+                            class="page-link"
+                            onclick="loadImages(${page - 1})"
+                            ${page === 1 ? "disabled" : ""}
+                        >
+                            Previous
+                        </button>
+                    </li>
+
+                    ${Array.from({ length: totalPages }, (_, index) => {
+                        const pageNumber = index + 1;
+
+                        return `
+                            <li class="page-item ${pageNumber === page ? "active" : ""}">
+                                <button
+                                    class="page-link"
+                                    onclick="loadImages(${pageNumber})"
+                                >
+                                    ${pageNumber}
+                                </button>
+                            </li>
+                        `;
+                    }).join("")}
+
+                    <li class="page-item ${page === totalPages ? "disabled" : ""}">
+                        <button
+                            class="page-link"
+                            onclick="loadImages(${page + 1})"
+                            ${page === totalPages ? "disabled" : ""}
+                        >
+                            Next
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        `
+    );
+}
 
 function formatFileSize(bytes) {
     if (bytes < 1024) {
@@ -111,11 +165,9 @@ function formatFileSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-
 function formatDate(dateString) {
     return new Date(dateString).toLocaleString();
 }
-
 
 async function deleteImage(imageId) {
     const confirmed = confirm(
@@ -135,10 +187,9 @@ async function deleteImage(imageId) {
             throw new Error(`Delete failed: ${response.status}`);
         }
 
-        await loadImages();
+        await loadImages(currentPage);
     } catch (error) {
         console.error(error);
-
         alert("Failed to delete image.");
     }
 }

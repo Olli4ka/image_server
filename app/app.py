@@ -6,10 +6,12 @@ from email.policy import default
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from PIL import Image
 
 from database import create_table, get_images, save_image_metadata, delete_image
+
 
 
 HOST = "0.0.0.0"
@@ -50,14 +52,27 @@ class ImageServerHandler(BaseHTTPRequestHandler):
             self.serve_file(STATIC_DIR / "images-list.html", "text/html")
             return
 
-        if self.path == "/images-list":
+        if self.path.startswith("/images-list"):
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+
             try:
-                images = get_images()
+                page = int(query_params.get("page", ["1"])[0])
+            except ValueError:
+                self.send_error(400, "Invalid page")
+                return
 
-                response = []
+            if page < 1:
+                self.send_error(400, "Invalid page")
+                return
 
-                for image in images:
-                    response.append(
+            per_page = 10
+
+            try:
+                images, total = get_images(page=page, per_page=per_page)
+
+                response = {
+                    "images": [
                         {
                             "id": image[0],
                             "filename": image[1],
@@ -66,19 +81,26 @@ class ImageServerHandler(BaseHTTPRequestHandler):
                             "upload_time": image[4].isoformat(),
                             "file_type": image[5],
                         }
-                    )
-
-                response_data = json.dumps(response).encode("utf-8")
+                        for image in images
+                    ],
+                    "page": page,
+                    "per_page": per_page,
+                    "total": total,
+                }
 
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(response_data)))
+                self.send_header(
+                    "Content-Type",
+                    "application/json; charset=utf-8",
+                )
                 self.end_headers()
 
-                self.wfile.write(response_data)
+                self.wfile.write(
+                    json.dumps(response).encode("utf-8")
+                )
 
             except Exception:
-                logger.exception("Failed to get images list")
+                logger.exception("Failed to load images list")
                 self.send_error(500, "Database error")
 
             return
