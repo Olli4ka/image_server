@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from database import create_table, get_images, save_image_metadata
+from database import create_table, get_images, save_image_metadata, delete_image
 
 
 HOST = "0.0.0.0"
@@ -233,6 +233,58 @@ class ImageServerHandler(BaseHTTPRequestHandler):
         }
 
         return content_types.get(suffix, "application/octet-stream")
+
+
+    def do_DELETE(self):
+        if not self.path.startswith("/images/"):
+            self.send_error(404, "Not Found")
+            return
+
+        image_id = self.path.removeprefix("/images/")
+
+        try:
+            image_id = int(image_id)
+        except ValueError:
+            self.send_error(400, "Invalid image ID")
+            return
+
+        try:
+            filename = delete_image(image_id)
+
+            if filename is None:
+                self.send_error(404, "Image not found")
+                return
+
+            image_path = IMAGES_DIR / filename
+
+            if image_path.is_file():
+                image_path.unlink()
+
+            logger.info(
+                "Image deleted: id=%d, filename=%s",
+                image_id,
+                filename,
+            )
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+
+            response = json.dumps(
+                {
+                    "message": "Image deleted successfully",
+                    "id": image_id,
+                }
+            )
+
+            self.wfile.write(response.encode("utf-8"))
+
+        except Exception:
+            logger.exception(
+                "Failed to delete image: id=%d",
+                image_id,
+            )
+            self.send_error(500, "Database error")
 
 
 def run_server():

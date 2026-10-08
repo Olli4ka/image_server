@@ -81,4 +81,42 @@ def get_images():
             return cursor.fetchall()
     finally:
         connection.close()
-        
+
+
+def delete_image(image_id):
+    connection = get_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT filename
+                FROM images
+                WHERE id = %s
+                """,
+                (image_id,),
+            )
+
+            image = cursor.fetchone()
+
+            if image is None:
+                return None
+
+            filename = image[0]
+
+            cursor.execute(
+                """
+                DELETE FROM images
+                WHERE id = %s
+                """,
+                (image_id,),
+            )
+
+        connection.commit()
+
+        return filename
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
