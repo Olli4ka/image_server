@@ -219,3 +219,7 @@ __marimo__/
 
 images/*
 !images/.gitkeep
+
+# Database backups
+backups/*.sql
+backups/backup.log
