@@ -1,17 +1,22 @@
 const imagesContainer = document.getElementById("images-container");
 
+let currentPage = 1;
 
-async function loadImages() {
+
+async function loadImages(page = 1) {
     try {
-        const response = await fetch("/images-list");
+        const response = await fetch(`/images-list?page=${page}`);
 
         if (!response.ok) {
             throw new Error(`Failed to load images: ${response.status}`);
         }
 
-        const images = await response.json();
+        const data = await response.json();
 
-        renderImages(images);
+        currentPage = data.page;
+
+        renderImages(data.images);
+        renderPagination(data.page, data.per_page, data.total);
     } catch (error) {
         console.error(error);
 
@@ -61,25 +66,11 @@ function renderImages(images) {
                                 >
                             </td>
 
-                            <td>
-                                ${image.original_name}
-                            </td>
-
-                            <td>
-                                ${image.filename}
-                            </td>
-
-                            <td>
-                                ${image.file_type.toUpperCase()}
-                            </td>
-
-                            <td>
-                                ${formatFileSize(image.size)}
-                            </td>
-
-                            <td>
-                                ${formatDate(image.upload_time)}
-                            </td>
+                            <td>${image.original_name}</td>
+                            <td>${image.filename}</td>
+                            <td>${image.file_type.toUpperCase()}</td>
+                            <td>${formatFileSize(image.size)}</td>
+                            <td>${formatDate(image.upload_time)}</td>
 
                             <td>
                                 <button
@@ -101,6 +92,74 @@ function renderImages(images) {
             </table>
         </div>
     `;
+}
+
+
+function renderPagination(page, perPage, total) {
+    const totalPages = Math.ceil(total / perPage);
+
+    let paginationContainer = document.getElementById("pagination-container");
+
+    if (!paginationContainer) {
+        paginationContainer = document.createElement("div");
+        paginationContainer.id = "pagination-container";
+        imagesContainer.after(paginationContainer);
+    }
+
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = "";
+        return;
+    }
+
+    paginationContainer.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <span class="text-muted">
+                Page ${page} of ${totalPages} (${total} images)
+            </span>
+
+            <div class="btn-group" role="group" aria-label="Image pagination">
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    ${page <= 1 ? "disabled" : ""}
+                    onclick="loadImages(${page - 1})"
+                >
+                    Previous
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    ${page >= totalPages ? "disabled" : ""}
+                    onclick="loadImages(${page + 1})"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+
+async function deleteImage(id) {
+    if (!confirm("Are you sure you want to delete this image?")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/images/${id}`, {
+            method: "DELETE",
+        });
+
+        if (!response.ok) {
+            throw new Error(`Delete failed: ${response.status}`);
+        }
+
+        await loadImages(currentPage);
+    } catch (error) {
+        console.error("Failed to delete image:", error);
+        alert("Failed to delete image. Please try again.");
+    }
 }
 
 
